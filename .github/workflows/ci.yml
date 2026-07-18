@@ -1,0 +1,67 @@
+name: CI/CD Pipeline
+
+on:
+  push:
+    branches: [ main, master ]
+  pull_request:
+    branches: [ main, master ]
+
+jobs:
+  rust-tests:
+    name: Rust Smart Contract Tests
+    runs-on: ubuntu-latest
+    steps:
+      - name: Checkout Repository
+        uses: actions/checkout@v4
+
+      - name: Install Rust Toolchain
+        uses: dtolnay/rust-toolchain@stable
+        with:
+          toolchain: stable
+          targets: wasm32-unknown-unknown
+
+      - name: Cache Cargo Dependencies
+        uses: actions/cache@v4
+        with:
+          path: |
+            ~/.cargo/bin/
+            ~/.cargo/registry/index/
+            ~/.cargo/registry/cache/
+            ~/.cargo/git/db/
+            target/
+          key: ${{ runner.os }}-cargo-${{ hashFiles('**/Cargo.toml') }}
+
+      - name: Build Registry Contract (WASM)
+        run: |
+          cd contracts/registry-contract
+          cargo build --target wasm32-unknown-unknown --release
+
+      - name: Build Escrow Contract (WASM)
+        run: |
+          cd contracts/escrow-contract
+          cargo build --target wasm32-unknown-unknown --release
+
+  frontend-tests:
+    name: Vite Frontend CI
+    runs-on: ubuntu-latest
+    steps:
+      - name: Checkout Repository
+        uses: actions/checkout@v4
+
+      - name: Setup Node.js
+        uses: actions/setup-node@v4
+        with:
+          node-version: '22'
+
+      - name: Install Dependencies
+        run: npm install
+
+      - name: Run Frontend Tests
+        run: npm run test
+
+      - name: Run Build
+        run: npm run build
+        env:
+          VITE_STELLAR_RPC_URL: https://soroban-testnet.stellar.org:443
+          VITE_ESCROW_CONTRACT_ID: CBEBKFQAP46KIKWE4ECUZNTGD6T433NHQYY7DQSVQ2REVG7WAVQE64ZA
+          VITE_PROJECT_CONTRACT_ID: CA7MSP7ENYQENDNQT23N3GREKOKU6ZPJZAZUDCVMB6YA4HLRWSAQ4WCW
