@@ -44,6 +44,10 @@ impl EscrowContract {
   pub fn deposit(env: Env, sponsor: Address, project_id: u64, amount: i128) {
     sponsor.require_auth();
 
+    if amount <= 0 {
+      panic!("Deposit amount must be greater than zero");
+    }
+
     let deposit = EscrowDeposit {
       project_id,
       sponsor: sponsor.clone(),
