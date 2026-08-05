@@ -65,6 +65,10 @@ impl RegistryContract {
   ) -> u64 {
     sponsor.require_auth();
 
+    if amount <= 0 {
+      panic!("Project amount must be greater than zero");
+    }
+
     let count: u64 = env
       .storage()
       .instance()
