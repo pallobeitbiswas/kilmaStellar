@@ -45,8 +45,36 @@ fn test_create_project() {
 }
 
 #[test]
+#[should_panic(expected = "Project amount must be greater than zero")]
+fn test_zero_amount_project_rejected() {
+  let (env, contract_id, _) = setup_env();
+  let client = RegistryContractClient::new(&env, &contract_id);
+
+  let sponsor = Address::generate(&env);
+  let developer = Address::generate(&env);
+  let auditor = Address::generate(&env);
+  let certifier = Address::generate(&env);
+
+  client.create_project(&sponsor, &developer, &auditor, &certifier, &0);
+}
+
+#[test]
+#[should_panic(expected = "Project amount must be greater than zero")]
+fn test_negative_amount_project_rejected() {
+  let (env, contract_id, _) = setup_env();
+  let client = RegistryContractClient::new(&env, &contract_id);
+
+  let sponsor = Address::generate(&env);
+  let developer = Address::generate(&env);
+  let auditor = Address::generate(&env);
+  let certifier = Address::generate(&env);
+
+  client.create_project(&sponsor, &developer, &auditor, &certifier, &-500_0000000);
+}
+
+#[test]
 fn test_project_lifecycle() {
-  let (env, contract_id, escrow_contract) = setup_env();
+  let (env, contract_id, _escrow_contract) = setup_env();
   let client = RegistryContractClient::new(&env, &contract_id);
 
   let sponsor = Address::generate(&env);
@@ -56,20 +84,74 @@ fn test_project_lifecycle() {
 
   let project_id = client.create_project(&sponsor, &developer, &auditor, &certifier, &500_0000000);
 
-  // Escrow contract marks project as funded
-  // Since we set up mock_all_auths, we can make the call acting as escrow_contract
   client.mark_funded(&project_id);
   assert_eq!(client.get_project(&1).status, ProjectStatus::Funded);
 
-  // Submit Audit
   client.submit_audit(&auditor, &project_id);
   assert_eq!(client.get_project(&1).status, ProjectStatus::AuditSubmitted);
 
-  // Verify Impact
   client.verify_impact(&auditor, &project_id);
   assert_eq!(client.get_project(&1).status, ProjectStatus::Verified);
 
-  // Certify Impact - Passed
   client.certify_impact(&certifier, &project_id, &true);
   assert_eq!(client.get_project(&1).status, ProjectStatus::Certified);
+}
+
+#[test]
+fn test_project_lifecycle_rejected_and_refunded() {
+  let (env, contract_id, _) = setup_env();
+  let client = RegistryContractClient::new(&env, &contract_id);
+
+  let sponsor = Address::generate(&env);
+  let developer = Address::generate(&env);
+  let auditor = Address::generate(&env);
+  let certifier = Address::generate(&env);
+
+  let project_id = client.create_project(&sponsor, &developer, &auditor, &certifier, &200_0000000);
+
+  client.mark_funded(&project_id);
+  client.submit_audit(&auditor, &project_id);
+  client.verify_impact(&auditor, &project_id);
+
+  // Certifier rejects
+  client.certify_impact(&certifier, &project_id, &false);
+  assert_eq!(client.get_project(&1).status, ProjectStatus::Rejected);
+
+  // Sponsor requests refund
+  client.refund_project(&sponsor, &project_id);
+  assert_eq!(client.get_project(&1).status, ProjectStatus::Refunded);
+}
+
+#[test]
+#[should_panic(expected = "Project cannot be funded in this state")]
+fn test_double_funding_rejected() {
+  let (env, contract_id, _) = setup_env();
+  let client = RegistryContractClient::new(&env, &contract_id);
+
+  let sponsor = Address::generate(&env);
+  let developer = Address::generate(&env);
+  let auditor = Address::generate(&env);
+  let certifier = Address::generate(&env);
+
+  let project_id = client.create_project(&sponsor, &developer, &auditor, &certifier, &100_0000000);
+  client.mark_funded(&project_id);
+  // Try to fund again — must fail
+  client.mark_funded(&project_id);
+}
+
+#[test]
+#[should_panic(expected = "Not authorized auditor")]
+fn test_wrong_auditor_rejected() {
+  let (env, contract_id, _) = setup_env();
+  let client = RegistryContractClient::new(&env, &contract_id);
+
+  let sponsor = Address::generate(&env);
+  let developer = Address::generate(&env);
+  let auditor = Address::generate(&env);
+  let certifier = Address::generate(&env);
+  let impostor = Address::generate(&env);
+
+  let project_id = client.create_project(&sponsor, &developer, &auditor, &certifier, &100_0000000);
+  client.mark_funded(&project_id);
+  client.submit_audit(&impostor, &project_id);
 }
