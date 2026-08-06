@@ -15,6 +15,14 @@ pub struct Loan {
     pub repaid: bool,
 }
 
+#[contracttype]
+#[derive(Clone, Debug)]
+pub struct FinanceStats {
+    pub loan_count: u64,
+    pub pool_balance: i128,
+    pub active_principal: i128,
+}
+
 /* ─── Storage keys ─── */
 
 #[contracttype]
@@ -135,6 +143,41 @@ impl FinanceContract {
             .instance()
             .get(&DataKey::LoanCount)
             .unwrap_or(0)
+    }
+
+    /// Returns aggregate protocol stats in a single call to minimize RPC round trips.
+    pub fn get_finance_stats(env: Env) -> FinanceStats {
+        let loan_count: u64 = env
+            .storage()
+            .instance()
+            .get(&DataKey::LoanCount)
+            .unwrap_or(0);
+
+        let pool_balance: i128 = env
+            .storage()
+            .instance()
+            .get(&DataKey::PoolBalance)
+            .unwrap_or(0);
+
+        // Sum principal across all active loans
+        let mut total_principal: i128 = 0;
+        for i in 1..=loan_count {
+            if let Some(loan) = env
+                .storage()
+                .instance()
+                .get::<DataKey, Loan>(&DataKey::Loan(i))
+            {
+                if !loan.repaid {
+                    total_principal += loan.principal;
+                }
+            }
+        }
+
+        FinanceStats {
+            loan_count,
+            pool_balance,
+            active_principal: total_principal,
+        }
     }
 }
 
