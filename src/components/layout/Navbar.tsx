@@ -6,7 +6,7 @@ import WalletButton from '../wallet/WalletButton';
 const navLinks = [
   { href: '/dashboard', label: 'Dashboard' },
   { href: '/transfer', label: 'Direct Transfer' },
-  { href: '/dashboard/analytics', label: 'Telemetry' },
+  { href: '/analytics', label: 'Analytics' },
 ];
 
 export default function Navbar() {
