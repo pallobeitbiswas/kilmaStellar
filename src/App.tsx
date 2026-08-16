@@ -11,10 +11,25 @@ import Dashboard from '@/pages/Dashboard';
 import CreateProject from '@/pages/CreateProject';
 import ProjectDetails from '@/pages/ProjectDetails';
 import Transfer from '@/pages/Transfer';
+import Analytics from '@/pages/Analytics';
+import { useLocation } from 'react-router-dom';
+import { useEffect } from 'react';
+import { telemetry } from '@/lib/telemetry';
+
+function TelemetryTracker() {
+  const location = useLocation();
+
+  useEffect(() => {
+    telemetry.log('page_view', `Visited ${location.pathname}`);
+  }, [location.pathname]);
+
+  return null;
+}
 
 function App() {
   return (
     <Router>
+      <TelemetryTracker />
       <Grain />
       <Aurora />
       <Navbar />
@@ -23,6 +38,7 @@ function App() {
           <Route path="/" element={<Home />} />
           <Route path="/dashboard" element={<Dashboard />} />
           <Route path="/transfer" element={<Transfer />} />
+          <Route path="/analytics" element={<Analytics />} />
           <Route path="/projects/create" element={<CreateProject />} />
           <Route path="/projects/:id" element={<ProjectDetails />} />
         </Routes>
