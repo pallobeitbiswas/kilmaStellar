@@ -10,6 +10,7 @@ import { useContractEvents } from '@/hooks/useContractEvents';
 import { PROJECT_CONTRACT_ID } from '@/lib/constants';
 import { stellar } from '@/lib/stellar';
 import { Badge } from '@/components/ui/Badge';
+import { ProjectStatusTimeline } from '@/components/projects/ProjectStatusTimeline';
 import { Link } from "react-router-dom";
 import toast from 'react-hot-toast';
 import type { Project } from '@/lib/types';
@@ -274,8 +275,11 @@ export default function ProjectDetailPage() {
           )}
         </div>
 
-        {/* Right Column: Ledger Event Logs & Document Verifications */}
+        {/* Right Column: Timeline, Ledger Event Logs & Document Verifications */}
         <div className="lg:col-span-4 space-y-8">
+          {/* Project Lifecycle Timeline */}
+          <ProjectStatusTimeline status={project.status} />
+
           {/* On-Chain Event Ledger */}
           <div className="border border-hairline bg-surface text-ink p-6 rounded-xl flex flex-col h-[400px] relative overflow-hidden">
             {/* Helix corner accents */}
