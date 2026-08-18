@@ -7,9 +7,22 @@ on:
     branches: [ main, master ]
 
 jobs:
+  # ── Smart Contract Tests ────────────────────────────────────────
+  # Each contract is tested in a parallel matrix job.
+  # Cargo.lock is committed per-contract to pin exact crate versions
+  # and avoid transitive breaking changes (e.g. soroban-env-host pulling
+  # in ed25519-dalek v3 which breaks CryptoRng trait bounds).
   rust-tests:
-    name: Rust Smart Contract Tests
+    name: Smart Contract Tests
     runs-on: ubuntu-latest
+
+    strategy:
+      matrix:
+        contract:
+          - contracts/escrow-contract
+          - contracts/registry-contract
+          - contracts/finance-contract
+
     steps:
       - name: Checkout Repository
         uses: actions/checkout@v4
@@ -28,22 +41,21 @@ jobs:
             ~/.cargo/registry/index/
             ~/.cargo/registry/cache/
             ~/.cargo/git/db/
-            target/
-          key: ${{ runner.os }}-cargo-${{ hashFiles('**/Cargo.toml') }}
+          key: ${{ runner.os }}-cargo-${{ matrix.contract }}-${{ hashFiles(format('{0}/Cargo.lock', matrix.contract)) }}
+          restore-keys: |
+            ${{ runner.os }}-cargo-${{ matrix.contract }}-
 
-      - name: Build Registry Contract (WASM)
-        run: |
-          cd contracts/registry-contract
-          cargo build --target wasm32-unknown-unknown --release
+      - name: Run Contract Tests
+        run: cargo test
+        working-directory: ${{ matrix.contract }}
 
-      - name: Build Escrow Contract (WASM)
-        run: |
-          cd contracts/escrow-contract
-          cargo build --target wasm32-unknown-unknown --release
-
+  # ── Frontend Tests ──────────────────────────────────────────────
+  # Uses `npm ci` (not `npm install`) to ensure package-lock.json is
+  # respected exactly — fails fast on any package.json/lock mismatch.
   frontend-tests:
     name: Vite Frontend CI
     runs-on: ubuntu-latest
+
     steps:
       - name: Checkout Repository
         uses: actions/checkout@v4
@@ -51,13 +63,14 @@ jobs:
       - name: Setup Node.js
         uses: actions/setup-node@v4
         with:
-          node-version: '22'
+          node-version: '20'
+          cache: 'npm'
 
-      - name: Install Dependencies
-        run: npm install
+      - name: Install Dependencies (locked)
+        run: npm ci
 
       - name: Run Frontend Tests
-        run: npm run test
+        run: npm test
 
       - name: Run Build
         run: npm run build
